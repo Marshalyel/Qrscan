@@ -1,12 +1,13 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="utf-8" />
   <title>QR Tap System</title>
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
   <style>
     #reader {
       width: 500px;
-      margin: auto;
+      margin: 40px auto;
     }
     #log {
       text-align: center;
@@ -17,32 +18,46 @@
   </style>
 </head>
 <body>
-  <h2 align="center">QR Scanner Always-On</h2>
+  <h2 align="center">QR Scanner Always‑On</h2>
   <div id="reader"></div>
   <div id="log">Waiting for QR Code...</div>
 
-<script>
-  async function startScanner() {
-    try {
+  <script>
+    let html5QrcodeScanner;
+
+    // 1) Definisikan callback-nya dulu
+    function onScanSuccess(qrMessage) {
+      const logDiv = document.getElementById('log');
+      const now = new Date().toLocaleString();
+      logDiv.innerText = `✅ [${now}] Scanned: ${qrMessage}`;
+      console.log(`[${now}]`, qrMessage);
+
+      // jeda 2 detik sebelum restart scanner
+      html5QrcodeScanner.stop()
+        .then(() => setTimeout(startScanner, 2000))
+        .catch(err => console.error("Gagal stop scanner:", err));
+    }
+
+    // 2) Fungsi untuk start/restart
+    function startScanner() {
       html5QrcodeScanner = new Html5Qrcode("reader");
-      await html5QrcodeScanner.start(
-        { facingMode: "environment" },
+      html5QrcodeScanner.start(
+        { facingMode: { exact: "environment" } },
         { fps: 10, qrbox: 250 },
         onScanSuccess
-      );
-    } catch (err) {
-      const logDiv = document.getElementById('log');
-      if (err.name === 'NotAllowedError') {
-        logDiv.innerText = '❌ Akses kamera ditolak! Pastikan kamu buka via HTTPS dan klik “Allow”.';
-      } else {
-        logDiv.innerText = `❌ Error: ${err.message}`;
-      }
-      console.error(err);
+      ).catch(err => {
+        const logDiv = document.getElementById('log');
+        if (err.name === 'NotAllowedError') {
+          logDiv.innerText = '❌ Akses kamera ditolak! Pastikan buka via HTTPS dan klik “Allow”.';
+        } else {
+          logDiv.innerText = `❌ Error: ${err.message}`;
+        }
+        console.error(err);
+      });
     }
-  }
 
-  startScanner();
-</script>
-
+    // 3) Jalankan pertama kali
+    window.addEventListener('load', startScanner);
+  </script>
 </body>
 </html>
