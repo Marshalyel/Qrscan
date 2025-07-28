@@ -21,36 +21,28 @@
   <div id="reader"></div>
   <div id="log">Waiting for QR Code...</div>
 
-  <script>
-    function onScanSuccess(qrMessage) {
-      const logDiv = document.getElementById('log');
-      const now = new Date().toLocaleString();
-      logDiv.innerText = `✅ [${now}] Scanned: ${qrMessage}`;
-
-      // Simpan log (opsional: kirim ke server)
-      console.log(`[${now}]`, qrMessage);
-
-      // Prevent multiple reads in short time
-      html5QrcodeScanner.clear().then(() => {
-        setTimeout(() => startScanner(), 2000); // restart after 2 sec
-      });
-    }
-
-    function startScanner() {
+<script>
+  async function startScanner() {
+    try {
       html5QrcodeScanner = new Html5Qrcode("reader");
-      html5QrcodeScanner.start(
-        { facingMode: "environment" }, // gunakan kamera belakang jika mobile
-        {
-          fps: 10,
-          qrbox: 250
-        },
+      await html5QrcodeScanner.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: 250 },
         onScanSuccess
-      ).catch(err => {
-        document.getElementById('log').innerText = `❌ Error: ${err}`;
-      });
+      );
+    } catch (err) {
+      const logDiv = document.getElementById('log');
+      if (err.name === 'NotAllowedError') {
+        logDiv.innerText = '❌ Akses kamera ditolak! Pastikan kamu buka via HTTPS dan klik “Allow”.';
+      } else {
+        logDiv.innerText = `❌ Error: ${err.message}`;
+      }
+      console.error(err);
     }
+  }
 
-    startScanner();
-  </script>
+  startScanner();
+</script>
+
 </body>
 </html>
