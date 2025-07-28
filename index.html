@@ -2,39 +2,50 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>QR Scanner Always‑On</title>
+  <title>QR Scanner dengan Tombol Start</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <!-- 1. Load html5-qrcode dari jsDelivr -->
+  <!-- Load library html5-qrcode -->
   <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/minified/html5-qrcode.min.js"></script>
 
   <style>
     body {
       font-family: sans-serif;
       text-align: center;
-      margin: 0;
       padding: 20px;
-      background: #f0f0f0;
-    }
-    h1 {
-      margin-bottom: 10px;
+      background: #fafafa;
     }
     #reader {
       width: 360px;
       height: 360px;
-      margin: 0 auto;
-      border: 3px solid lime;        /* border agar area kamera terlihat */
+      margin: 20px auto;
+      border: 3px dashed #666;
       border-radius: 8px;
-      background: #000;               /* latar hitam sebelum kamera hidup */
+      background: #000;
       position: relative;
     }
-    /* pastikan video/canvas memenuhi #reader */
     #reader video,
     #reader canvas {
       width: 100% !important;
       height: 100% !important;
       object-fit: cover;
       border-radius: 5px;
+    }
+    #controls {
+      margin-top: 10px;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      border: none;
+      border-radius: 4px;
+      background: #007bff;
+      color: #fff;
+      cursor: pointer;
+    }
+    button:disabled {
+      background: #aaa;
+      cursor: not-allowed;
     }
     #log {
       margin-top: 15px;
@@ -47,68 +58,92 @@
   </style>
 </head>
 <body>
-  <h1>QR Tap Scanner</h1>
+  <h1>QR Scanner Always‑On</h1>
+
   <div id="reader"></div>
-  <div id="log">📷 Menunggu QR Code…</div>
+
+  <div id="controls">
+    <button id="btn-start">▶️ Mulai Kamera</button>
+    <button id="btn-stop" disabled>⏹️ Stop Scanner</button>
+  </div>
+
+  <div id="log">Klik “Mulai Kamera” untuk izinkan akses.</div>
 
   <script>
     let html5QrCode;
 
-    // Callback saat scan sukses
-    function onScanSuccess(decodedText, decodedResult) {
-      const time = new Date().toLocaleTimeString();
-      const logEl = document.getElementById('log');
-      logEl.classList.remove('error');
-      logEl.innerText = `✅ ${time} – ${decodedText}`;
+    const btnStart = document.getElementById('btn-start');
+    const btnStop  = document.getElementById('btn-stop');
+    const logEl    = document.getElementById('log');
 
-      // Stop sementara, lalu restart setelah delay
+    function setLog(msg, isError = false) {
+      logEl.innerText = msg;
+      logEl.classList.toggle('error', isError);
+    }
+
+    // dipanggil setelah scan berhasil
+    function onScanSuccess(decodedText) {
+      setLog(`✅ ${new Date().toLocaleTimeString()} – ${decodedText}`);
+      // hentikan sementara agar tidak baca ulang
       html5QrCode.stop().then(() => {
-        setTimeout(startScanner, 2000);
-      }).catch(err => {
-        console.error("Gagal stop scanner:", err);
+        btnStart.disabled = false;
+        btnStop.disabled  = true;
       });
     }
 
-    // Callback error scan (per frame, kita abaikan)
-    function onScanError(errorMessage) {
-      // console.warn("Scan error:", errorMessage);
+    function onScanError(err) {
+      // abaikan per‐frame error
     }
 
-    // Mulai (atau restart) scanner
+    // start scanner dan minta permission
     function startScanner() {
-      const logEl = document.getElementById('log');
-      logEl.classList.remove('error');
-      logEl.innerText = '🔍 Mengaktifkan kamera…';
-
+      btnStart.disabled = true;
+      setLog('🔍 Mengaktifkan kamera…');
       html5QrCode.start(
         { facingMode: 'environment' },
-        { fps: 10, qrbox: { width: 300, height: 300 } },
+        { fps: 10, qrbox: { width:300, height:300 } },
         onScanSuccess,
         onScanError
-      ).then(() => {
-        logEl.innerText = '🔍 Arahkan QR ke kotak kamera';
-      }).catch(err => {
-        console.error("start() error:", err);
-        logEl.classList.add('error');
-        if (err.name === 'NotAllowedError') {
-          logEl.innerText = '❌ Akses kamera ditolak. Pastikan “Allow” di permission.';
-        } else {
-          logEl.innerText = `❌ Gagal mulai kamera: ${err.name}`;
-        }
+      )
+      .then(() => {
+        setLog('🔍 Arahkan QR ke kotak di atas');
+        btnStop.disabled = false;
+      })
+      .catch(err => {
+        console.error(err);
+        setLog(
+          err.name === 'NotAllowedError'
+            ? '❌ Akses kamera ditolak.'
+            : `❌ Gagal mulai kamera: ${err.name}`,
+          true
+        );
+        btnStart.disabled = false;
       });
     }
 
-    // Inisialisasi setelah halaman siap
+    function stopScanner() {
+      html5QrCode.stop()
+        .then(() => {
+          setLog('🔴 Scanner dihentikan.');
+          btnStart.disabled = false;
+          btnStop.disabled  = true;
+        })
+        .catch(err => {
+          console.error('Error stop:', err);
+        });
+    }
+
+    // init
     window.addEventListener('load', () => {
-      // Pastikan library ter‑load
       if (typeof Html5Qrcode !== 'function') {
-        const logEl = document.getElementById('log');
-        logEl.classList.add('error');
-        logEl.innerText = '❌ Library html5-qrcode gagal dimuat.';
+        setLog('❌ Library html5-qrcode gagal dimuat.', true);
+        btnStart.disabled = true;
         return;
       }
-      html5QrCode = new Html5Qrcode("reader");
-      startScanner();
+      html5QrCode = new Html5Qrcode('reader');
+
+      btnStart.addEventListener('click', startScanner);
+      btnStop .addEventListener('click', stopScanner);
     });
   </script>
 </body>
