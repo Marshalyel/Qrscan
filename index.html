@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>QR Scanner dengan Tombol Start</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="UTF-8" />
+  <title>QR Scanner Always‑On</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  <!-- Load library html5-qrcode -->
-  <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/minified/html5-qrcode.min.js"></script>
+  <!-- Pakai mirror rawcdn.githack untuk html5-qrcode -->
+  <script src="https://rawcdn.githack.com/mebjas/html5-qrcode/master/minified/html5-qrcode.min.js"></script>
 
   <style>
     body {
@@ -19,7 +19,7 @@
       width: 360px;
       height: 360px;
       margin: 20px auto;
-      border: 3px dashed #666;
+      border: 3px solid lime;
       border-radius: 8px;
       background: #000;
       position: relative;
@@ -30,22 +30,6 @@
       height: 100% !important;
       object-fit: cover;
       border-radius: 5px;
-    }
-    #controls {
-      margin-top: 10px;
-    }
-    button {
-      padding: 10px 20px;
-      font-size: 16px;
-      border: none;
-      border-radius: 4px;
-      background: #007bff;
-      color: #fff;
-      cursor: pointer;
-    }
-    button:disabled {
-      background: #aaa;
-      cursor: not-allowed;
     }
     #log {
       margin-top: 15px;
@@ -58,46 +42,31 @@
   </style>
 </head>
 <body>
-  <h1>QR Scanner Always‑On</h1>
-
+  <h1>QR Tap Scanner</h1>
   <div id="reader"></div>
-
-  <div id="controls">
-    <button id="btn-start">▶️ Mulai Kamera</button>
-    <button id="btn-stop" disabled>⏹️ Stop Scanner</button>
-  </div>
-
-  <div id="log">Klik “Mulai Kamera” untuk izinkan akses.</div>
+  <div id="log">📷 Menunggu QR Code…</div>
 
   <script>
     let html5QrCode;
 
-    const btnStart = document.getElementById('btn-start');
-    const btnStop  = document.getElementById('btn-stop');
-    const logEl    = document.getElementById('log');
-
     function setLog(msg, isError = false) {
-      logEl.innerText = msg;
+      const logEl = document.getElementById('log');
+      logEl.textContent = msg;
       logEl.classList.toggle('error', isError);
     }
 
-    // dipanggil setelah scan berhasil
     function onScanSuccess(decodedText) {
       setLog(`✅ ${new Date().toLocaleTimeString()} – ${decodedText}`);
-      // hentikan sementara agar tidak baca ulang
-      html5QrCode.stop().then(() => {
-        btnStart.disabled = false;
-        btnStop.disabled  = true;
-      });
+      html5QrCode.stop()
+        .then(() => setTimeout(startScanner, 2000))
+        .catch(err => console.error("Error stopping scanner:", err));
     }
 
-    function onScanError(err) {
-      // abaikan per‐frame error
+    function onScanError(errorMessage) {
+      // ignore per-frame errors
     }
 
-    // start scanner dan minta permission
     function startScanner() {
-      btnStart.disabled = true;
       setLog('🔍 Mengaktifkan kamera…');
       html5QrCode.start(
         { facingMode: 'environment' },
@@ -105,10 +74,7 @@
         onScanSuccess,
         onScanError
       )
-      .then(() => {
-        setLog('🔍 Arahkan QR ke kotak di atas');
-        btnStop.disabled = false;
-      })
+      .then(() => setLog('🔍 Arahkan QR ke kotak kamera'))
       .catch(err => {
         console.error(err);
         setLog(
@@ -117,33 +83,17 @@
             : `❌ Gagal mulai kamera: ${err.name}`,
           true
         );
-        btnStart.disabled = false;
       });
     }
 
-    function stopScanner() {
-      html5QrCode.stop()
-        .then(() => {
-          setLog('🔴 Scanner dihentikan.');
-          btnStart.disabled = false;
-          btnStop.disabled  = true;
-        })
-        .catch(err => {
-          console.error('Error stop:', err);
-        });
-    }
-
-    // init
     window.addEventListener('load', () => {
+      // Cek apakah library berhasil dimuat
       if (typeof Html5Qrcode !== 'function') {
-        setLog('❌ Library html5-qrcode gagal dimuat.', true);
-        btnStart.disabled = true;
+        setLog('❌ Library html5‑qrcode gagal dimuat.', true);
         return;
       }
       html5QrCode = new Html5Qrcode('reader');
-
-      btnStart.addEventListener('click', startScanner);
-      btnStop .addEventListener('click', stopScanner);
+      startScanner();
     });
   </script>
 </body>
