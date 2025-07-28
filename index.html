@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>QR Tap System</title>
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <style>
+    #reader {
+      width: 500px;
+      margin: auto;
+    }
+    #log {
+      text-align: center;
+      margin-top: 20px;
+      font-family: sans-serif;
+      font-size: 18px;
+    }
+  </style>
+</head>
+<body>
+  <h2 align="center">QR Scanner Always-On</h2>
+  <div id="reader"></div>
+  <div id="log">Waiting for QR Code...</div>
+
+  <script>
+    function onScanSuccess(qrMessage) {
+      const logDiv = document.getElementById('log');
+      const now = new Date().toLocaleString();
+      logDiv.innerText = `✅ [${now}] Scanned: ${qrMessage}`;
+
+      // Simpan log (opsional: kirim ke server)
+      console.log(`[${now}]`, qrMessage);
+
+      // Prevent multiple reads in short time
+      html5QrcodeScanner.clear().then(() => {
+        setTimeout(() => startScanner(), 2000); // restart after 2 sec
+      });
+    }
+
+    function startScanner() {
+      html5QrcodeScanner = new Html5Qrcode("reader");
+      html5QrcodeScanner.start(
+        { facingMode: "environment" }, // gunakan kamera belakang jika mobile
+        {
+          fps: 10,
+          qrbox: 250
+        },
+        onScanSuccess
+      ).catch(err => {
+        document.getElementById('log').innerText = `❌ Error: ${err}`;
+      });
+    }
+
+    startScanner();
+  </script>
+</body>
+</html>
