@@ -2,90 +2,54 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>QR Scanner Debug</title>
-  <script src="https://unpkg.com/html5-qrcode@2.3.7/minified/html5-qrcode.min.js"></script>
+  <title>QR Scanner Always‑On</title>
+  <!-- 1) Load library dulu -->
+  <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/minified/html5-qrcode.min.js"></script>
   <style>
     #reader { width: 400px; margin: 40px auto; }
     #log { text-align: center; margin-top: 20px; font-family: sans-serif; }
-    #debug { width: 90%; margin: 20px auto; font-family: monospace; white-space: pre-wrap; background: #f5f5f5; padding: 10px; border-radius: 4px; max-height: 200px; overflow: auto; }
   </style>
 </head>
 <body>
-  <h2 align="center">QR Scanner Debug Mode</h2>
+  <h2 align="center">QR Scanner Always‑On</h2>
   <div id="reader"></div>
   <div id="log">Initializing…</div>
-  <div id="debug"></div>
 
   <script>
     let html5QrcodeScanner;
 
-    // Utility untuk menulis debug
-    function debug(msg, obj) {
-      const dbg = document.getElementById('debug');
-      dbg.textContent += msg + (obj ? ': ' + JSON.stringify(obj, Object.getOwnPropertyNames(obj), 2) : '') + '\n';
-      console.log(msg, obj);
-    }
-
-    // Pengecekan permission/pre-flight getUserMedia
-    async function checkCameraPermission() {
-      try {
-        debug('Checking getUserMedia…');
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        debug('Camera opened, stopping tracks');
-        stream.getTracks().forEach(t => t.stop());
-        return true;
-      } catch (err) {
-        debug('getUserMedia failed', { name: err.name, message: err.message });
-        document.getElementById('log').innerText =
-          err.name === 'NotAllowedError'
-            ? '❌ Kamera ditolak — pastikan klik “Allow”.'
-            : `❌ getUserMedia error: ${err.name} / ${err.message}`;
-        return false;
-      }
-    }
-
-    // Callback ketika scan sukses
-    function onScanSuccess(decodedText, decodedResult) {
+    // Callback sukses
+    function onScanSuccess(decodedText) {
       const now = new Date().toLocaleString();
       document.getElementById('log').innerText = `✅ [${now}] ${decodedText}`;
-      debug('Scanned result', decodedResult);
 
-      // Hentikan scanner lalu restart setelah delay
       html5QrcodeScanner.stop()
-        .then(() => debug('Scanner stopped, will restart in 2s'))
-        .catch(err => debug('Error stopping scanner', { name: err.name, message: err.message }))
-        .finally(() => setTimeout(startScanner, 2000));
+        .then(() => setTimeout(startScanner, 2000))
+        .catch(console.error);
     }
 
-    // Callback jika scan error (bukan Error JS tapi scan-error callback)
-    function onScanError(errorMessage) {
-      // tidak perlu tampilkan setiap frame error
-      // debug('Scan error', errorMessage);
+    // Mulai scanner
+    function startScanner() {
+      document.getElementById('log').innerText = '🔍 Scan QR sekarang…';
+      html5QrcodeScanner = new Html5Qrcode('reader');
+      html5QrcodeScanner.start(
+        { facingMode: 'environment' },
+        { fps: 10, qrbox: 250 },
+        onScanSuccess
+      ).catch(err => {
+        console.error('start() error:', err);
+        document.getElementById('log').innerText = `❌ start() error: ${err.name}`;
+      });
     }
 
-    // Start / restart scanner
-    async function startScanner() {
-      if (!await checkCameraPermission()) return;
-
-      document.getElementById('log').innerText = '🔍 Menyalakan QR Scanner…';
-      try {
-        html5QrcodeScanner = new Html5Qrcode('reader');
-        await html5QrcodeScanner.start(
-          { facingMode: 'environment' },
-          { fps: 10, qrbox: 250 },
-          onScanSuccess,
-          onScanError
-        );
-        debug('html5QrcodeScanner.start() succeeded');
-        document.getElementById('log').innerText = '🔍 Scan QR sekarang…';
-      } catch (err) {
-        debug('html5QrcodeScanner.start() failed', { name: err.name, message: err.message });
-        document.getElementById('log').innerText = `❌ start() error: ${err.name} / ${err.message}`;
-      }
-    }
-
+    // Run after page load
     window.addEventListener('load', () => {
-      debug('Page loaded, beginning init');
+      // Pastikan Html5Qrcode sudah tersedia
+      if (typeof Html5Qrcode === 'undefined') {
+        document.getElementById('log').innerText = '❌ Library html5‑qrcode gagal dimuat.';
+        console.error('Html5Qrcode is not defined');
+        return;
+      }
       startScanner();
     });
   </script>
