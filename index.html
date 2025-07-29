@@ -4,41 +4,13 @@
   <meta charset="UTF-8" />
   <title>QR Scanner Always‑On</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-
-  <!-- Pakai mirror rawcdn.githack untuk html5-qrcode -->
   <script src="https://rawcdn.githack.com/mebjas/html5-qrcode/master/minified/html5-qrcode.min.js"></script>
-
   <style>
-    body {
-      font-family: sans-serif;
-      text-align: center;
-      padding: 20px;
-      background: #fafafa;
-    }
-    #reader {
-      width: 360px;
-      height: 360px;
-      margin: 20px auto;
-      border: 3px solid lime;
-      border-radius: 8px;
-      background: #000;
-      position: relative;
-    }
-    #reader video,
-    #reader canvas {
-      width: 100% !important;
-      height: 100% !important;
-      object-fit: cover;
-      border-radius: 5px;
-    }
-    #log {
-      margin-top: 15px;
-      font-size: 16px;
-      color: #333;
-    }
-    #log.error {
-      color: #c00;
-    }
+    body { font-family: sans-serif; text-align: center; padding: 20px; background: #fafafa; }
+    #reader { width: 360px; height: 360px; margin: 20px auto; border: 3px solid lime; border-radius: 8px; background: #000; position: relative; }
+    #reader video, #reader canvas { width: 100% !important; height: 100% !important; object-fit: cover; border-radius: 5px; }
+    #log { margin-top: 15px; font-size: 16px; color: #333; }
+    #log.error { color: #c00; }
   </style>
 </head>
 <body>
@@ -48,6 +20,7 @@
 
   <script>
     let html5QrCode;
+    let selectedCameraId;
 
     function setLog(msg, isError = false) {
       const logEl = document.getElementById('log');
@@ -62,14 +35,14 @@
         .catch(err => console.error("Error stopping scanner:", err));
     }
 
-    function onScanError(errorMessage) {
+    function onScanError(/* errorMessage */) {
       // ignore per-frame errors
     }
 
     function startScanner() {
       setLog('🔍 Mengaktifkan kamera…');
       html5QrCode.start(
-        { facingMode: 'environment' },
+        { deviceId: { exact: selectedCameraId } }, 
         { fps: 10, qrbox: { width:300, height:300 } },
         onScanSuccess,
         onScanError
@@ -80,20 +53,35 @@
         setLog(
           err.name === 'NotAllowedError'
             ? '❌ Akses kamera ditolak.'
-            : `❌ Gagal mulai kamera: ${err.name}`,
+            : `❌ Gagal mulai kamera: ${err.name || err}`, 
           true
         );
       });
     }
 
     window.addEventListener('load', () => {
-      // Cek apakah library berhasil dimuat
       if (typeof Html5Qrcode !== 'function') {
         setLog('❌ Library html5‑qrcode gagal dimuat.', true);
         return;
       }
       html5QrCode = new Html5Qrcode('reader');
-      startScanner();
+
+      // Dapatkan daftar kamera, pilih yang belakang (environment)
+      Html5Qrcode.getCameras()
+        .then(cameras => {
+          if (!cameras || cameras.length === 0) {
+            setLog('❌ Tidak ada kamera terdeteksi.', true);
+            return;
+          }
+          // cari kamera dengan label "back" atau ambil yang pertama
+          const backCam = cameras.find(cam => /back|rear|environment/i.test(cam.label));
+          selectedCameraId = backCam ? backCam.id : cameras[0].id;
+          startScanner();
+        })
+        .catch(err => {
+          console.error(err);
+          setLog('❌ Gagal mengambil daftar kamera.', true);
+        });
     });
   </script>
 </body>
